@@ -19,7 +19,7 @@ This decision records why privileged access works the way [the privileged access
 
 ## Context
 
-The raw node contract (0.1.0) grants `initial_username` root through sudo with its password (RN-ACC-04), allows password login over SSH as a recovery path (RN-ACC-03), and says ingress never needs password hashes or other secrets. The onboarding egress contract (0.2.0) then makes sudo passwordless for `initial` (OE-CON-02).
+The raw node contract (0.2.0) grants `initial_username` root through sudo with its password (RN-ACC-04), allows password login over SSH as a recovery path (RN-ACC-03), and says ingress never needs password hashes or other secrets. The onboarding egress contract (0.2.1) then makes sudo passwordless for `initial` (OE-CON-02).
 
 That left two problems. Onboarding could not obtain root on a contract node, because the controller held the SSH key but not the password. And passwordless sudo is a finding under every hardening baseline the policy follows <a id="cite-disa-2026"></a>[(Defense Information Systems Agency [DISA], 2026)](#ref-disa-2026).
 
@@ -59,7 +59,7 @@ Before normalization, the pipeline contracts below apply the parts of the policy
 
 ## Contract changes
 
-### Raw node contract, 0.1.0 to 0.2.0
+### Raw node contract, 0.2.0 to 0.3.0
 
 Incompatible, because RN-ACC-03 is retired.
 
@@ -78,7 +78,7 @@ Incompatible, because RN-ACC-03 is retired.
 
 A producer builds nodes before their hostnames exist, so `initial_password` is shared per build batch. Ingress admits a node only when `ssh_password_auth` and `sudo_nopasswd` are false and the host key fingerprints match the connection.
 
-### Onboarding egress contract, 0.2.0 to 0.3.0
+### Onboarding egress contract, 0.2.1 to 0.3.0
 
 Incompatible, because OE-CON-02 is retired.
 

@@ -3,19 +3,21 @@ name: uc-raw-node-contract
 org: universal-cake
 lang: en
 type: contract
-version: 0.2.0
+version: 0.3.0
 date: 2026-11-16
 ---
 
 # Raw node contract
 
-Version: 0.2.0
+Version: 0.3.0
 
 Status: Draft
 
 Author: Christopher Steel
 
 This contract defines the state of a raw node at the moment a producer hands it over, and what Ansible ingress may rely on when it receives the node. It is the agreement between raw node producers (egress) and the Ansible controller (ingress). It does not describe how a producer fulfils it, or what happens after ingress.
+
+The [privileged access policy](../../node-policies/privileged-access/uc-privileged-access-policy.md) governs normalized nodes. This contract applies the parts of it that a raw node can already meet, for the reasons recorded in [uc-privileged-access-decision](../../decisions/uc-privileged-access-decision-v0.3.0.md).
 
 ## Stages
 
@@ -39,11 +41,14 @@ Both sides know these values for each node:
 | Parameter | Meaning |
 | --- | --- |
 | `initial_username` | The temporary account used for ingress |
+| `initial_password` | The password of `initial_username`. Ingress holds it in the controller's secret store, and the producer receives only its hash. |
 | `ssh_public_key` | The public key whose private key ingress holds |
 | `ssh_port` | The SSH port. Default 22. |
 | `ssh_sources` | The addresses or networks allowed to reach SSH. Empty means any. |
 
-Password hashes and other secrets used to build the node belong to the producer. Ingress never needs them.
+A producer builds nodes before their hostnames exist, so `initial_password` may be shared by every node of one build batch. Onboarding replaces it with a password unique to the node.
+
+Ingress holds `initial_password`. Every other secret used to build the node, such as the `root` password, belongs to the producer, and ingress never needs it.
 
 ## Clauses
 
@@ -59,9 +64,12 @@ Password hashes and other secrets used to build the node belong to the producer.
 | --- | --- |
 | RN-ACC-01 | The account `initial_username` exists, and its home directory holds only `.ssh/authorized_keys` and the distribution's defaults for a new home |
 | RN-ACC-02 | `initial_username` can log in over SSH with `ssh_public_key` |
-| RN-ACC-03 | `initial_username` can log in over SSH with its password, as a recovery path |
+| RN-ACC-03 | Retired in 0.3.0. Was: `initial_username` can log in over SSH with its password, as a recovery path. Replaced by RN-ACC-06 and RN-SSH-03. |
 | RN-ACC-04 | `initial_username` can obtain root privileges through sudo, with its password |
 | RN-ACC-05 | The `root` account has a password and cannot log in over SSH |
+| RN-ACC-06 | `initial_username` can log in at the console with its password, as the recovery path during the raw window |
+| RN-ACC-07 | No sudoers rule contains `NOPASSWD` or `!authenticate` |
+| RN-ACC-08 | `initial_password` is at least 15 characters |
 
 ### SSH
 
@@ -69,6 +77,7 @@ Password hashes and other secrets used to build the node belong to the producer.
 | --- | --- |
 | RN-SSH-01 | The SSH server listens on `ssh_port` |
 | RN-SSH-02 | SSH is reachable from `ssh_sources`, or from anywhere when the list is empty, on at least one address reported in `interfaces` |
+| RN-SSH-03 | The SSH server accepts public key authentication only. Password, keyboard-interactive and empty-password logins are off. |
 
 ### Firewall
 
@@ -107,13 +116,20 @@ The confirmation is YAML, keyed by the node's hostname:
 
 ```yaml
 deb13-vt-a1b2:
-  contract: 0.1.0
-  baseline: 0.3.0
+  contract: 0.3.0
+  baseline: 0.4.0
   timestamp: 2026-11-15T19:35:00-05:00
   machine_id: 4c1f0a9e2b7d4e8f9a0b1c2d3e4f5a6b
   user: initial
   sudo: true
+  sudo_nopasswd: false
   ssh_port: 22
+  ssh_password_auth: false
+  ssh_host_keys:
+    - type: ssh-ed25519
+      fingerprint: "SHA256:k3J8m0yQvXb2..."
+    - type: ecdsa-sha2-nistp256
+      fingerprint: "SHA256:Qe1pT9wZr4Lc..."
   firewall: foomuuri
   firewall_active: true
   python: /usr/bin/python3
@@ -149,7 +165,12 @@ Every value is measured on the node when the report runs, not copied from the pr
 | `machine_id` | The contents of `/etc/machine-id`. Identifies this installation, and changes on reinstall. |
 | `user` | `initial_username` if that account exists, otherwise empty |
 | `sudo` | Whether `initial_username` can use sudo |
+| `sudo_nopasswd` | Whether any sudoers rule contains `NOPASSWD` or `!authenticate`. Must be `false` (RN-ACC-07). |
 | `ssh_port` | The port the SSH server listens on |
+| `ssh_password_auth` | Whether the running SSH server accepts password or keyboard-interactive authentication, as reported by `sshd -T`. Must be `false` (RN-SSH-03). |
+| `ssh_host_keys` | Every SSH host key of the node, as a list of `type` and SHA256 `fingerprint` |
+| `ssh_host_keys[].type` | The key type, such as `ssh-ed25519` |
+| `ssh_host_keys[].fingerprint` | The key's SHA256 fingerprint, as printed by `ssh-keygen -l` |
 | `firewall` | The name of the active firewall manager |
 | `firewall_active` | Whether the firewall manager is running |
 | `python` | The path of the system Python 3 interpreter, or empty when there is none. Reported, not promised. |
@@ -178,6 +199,10 @@ The network interface fields are facts only. The contract makes no promise about
 
 Anyone with root on a node can change both values. Ingress may use them to match and track nodes, but never to decide whether to trust one.
 
+### Host keys
+
+`ssh_host_keys` is what ingress trusts. Ingress compares the fingerprints in the confirmation with those of the host keys the node presented on the connection that read it, and admits the node only when they match. The confirmation is most useful when it is also read out of band, such as from the console, so that the comparison does not rely on the same connection alone.
+
 ## Not guaranteed
 
 The contract says nothing about these, and ingress must not rely on them:
@@ -205,5 +230,6 @@ While the major version is 0, a minor version may also be incompatible, and the 
 
 | Version | Status | Notes |
 | --- | --- | --- |
+| 0.3.0 | Draft | Incompatible with 0.2.0. Applies the privileged access policy where a raw node can meet it: shared parameter `initial_password` added; RN-ACC-03 (password login over SSH) retired; RN-ACC-06 (console login with the password), RN-ACC-07 (no `NOPASSWD`), RN-ACC-08 (password length) and RN-SSH-03 (key-only SSH) added; confirmation fields `sudo_nopasswd`, `ssh_password_auth` and `ssh_host_keys` added, with how ingress uses host keys |
 | 0.2.0 | Draft | RN-FWM-01 retired: the contract no longer names a firewall manager, because Foomuuri is installed during onboarding, after this contract. Incompatible with 0.1.0 for anything that relied on a raw node running Foomuuri. |
 | 0.1.0 | Draft | First version, agreed in discussion: clauses for hostname, accounts, SSH, the nftables firewall and its manager, and the confirmation report with interfaces and identity |

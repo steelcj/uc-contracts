@@ -3,13 +3,13 @@ name: uc-onboarding-egress-contract
 org: universal-cake
 lang: en
 type: contract
-version: 0.2.1
+version: 0.3.0
 date: 2026-11-16
 ---
 
 # Onboarding egress contract
 
-Version: 0.2.1
+Version: 0.3.0
 
 Status: Draft
 
@@ -18,6 +18,8 @@ Author: Christopher Steel
 This contract records what Ansible ingress proves about a node before it hands the node to normalization, and so what normalization may rely on. In short: a node that is ready to be normalized, with a safe connection over SSH and everything the Ansible normalization needs in place beforehand.
 
 It is written from the two ingress playbooks, `00_discover.yml` and `10_onboard.yml`, as supplied on 2026-11-16. The roles those playbooks call were not read. Where a clause depends on what a role does, it says only what the playbook and its comments say.
+
+Version 0.3.0 applies the [privileged access policy](../../node-policies/privileged-access/uc-privileged-access-policy.md) where an onboarded node can meet it, for the reasons recorded in [uc-privileged-access-decision](../../decisions/uc-privileged-access-decision-v0.3.0.md). The clauses it adds are marked "Not yet" until the playbook delivers them.
 
 ## Stages
 
@@ -51,6 +53,7 @@ The last plays re-target the node and write it to the onboard inventory. Normali
 | Connection | SSH |
 | User | `initial` |
 | Key | `onboard_ssh_private_key_file`, and only that key is offered |
+| Become password | The node's own `initial` password, from the controller's secret store (OE-CON-05, OE-ACC-03). Not yet delivered. |
 | Address | The node's default IPv4 address from facts gathered during onboarding, falling back to the inventory address, then the inventory name |
 
 ## Clauses
@@ -60,9 +63,10 @@ The last plays re-target the node and write it to the onboard inventory. Normali
 | ID | The onboarded node provides | Proof |
 | --- | --- | --- |
 | OE-CON-01 | The node answers over SSH as `initial`, with the key in `onboard_ssh_private_key_file` and no other key offered | Tested, by `wait_for_connection` in the play "Confirm SSH as the initial user works" |
-| OE-CON-02 | `initial` obtains root through sudo without a password | Tested, by running `id` with become in the same play |
+| OE-CON-02 | Retired in 0.3.0. Was: `initial` obtains root through sudo without a password. Replaced by OE-CON-05. The playbook as supplied still delivers it. | Was tested, by running `id` with become in the same play |
 | OE-CON-03 | A Python interpreter that Ansible can use is present | Tested, because the two tasks above cannot run without it |
 | OE-CON-04 | The firewall and fail2ban let the controller in over SSH | Tested, because OE-CON-01 runs after both were applied |
+| OE-CON-05 | `initial` obtains root through sudo with its password, which the controller holds in its secret store | Not yet. To be tested by running `id` with become and the password from the secret store. |
 
 ### Accounts
 
@@ -70,6 +74,8 @@ The last plays re-target the node and write it to the onboard inventory. Normali
 | --- | --- | --- |
 | OE-ACC-01 | The account `initial` exists, with its sudo rule and its public key | Converged, by `robertdebock.users`. Its effect is then tested by OE-CON-01 and OE-CON-02. |
 | OE-ACC-02 | sudo is installed | Converged, by `robertdebock.bootstrap` |
+| OE-ACC-03 | `initial` has a password unique to the node, replacing the batch password from the raw node contract, and the controller's secret store holds it under that node | Not yet. To be converged, then tested by OE-CON-05. |
+| OE-ACC-04 | No sudoers rule contains `NOPASSWD` or `!authenticate` | Not yet. To be tested by searching `/etc/sudoers` and `/etc/sudoers.d`. |
 
 ### Baseline
 
@@ -91,6 +97,7 @@ In the order the playbook applies them.
 | --- | --- | --- |
 | OE-SSH-01 | The SSH server is installed and hardened | Converged, by `robertdebock.openssh`. Which settings it hardens was not read. |
 | OE-SSH-02 | fail2ban is in place | Converged, by `robertdebock.fail2ban` |
+| OE-SSH-03 | The SSH server accepts public key authentication only. Password, keyboard-interactive and empty-password logins are off, and `root` cannot log in. | Not yet. To be tested with `sshd -T`. |
 
 ### Firewall
 
@@ -141,9 +148,10 @@ The owner has decided that the raw node contract is the current description: a r
 | How the node is reached | SSH as `initial_username` with a key. `root` cannot log in over SSH (RN-ACC-02, RN-ACC-05). | As root, over the Incus connection or over SSH | A node that meets the contract cannot be reached as root over SSH |
 | The initial account | Exists at handoff (RN-ACC-01) | Created last. Its existence is the test for "already onboarded", and such a node is skipped. | If `initial_username` is `initial`, a node that meets the contract is skipped and never onboarded |
 | umask and the home directory | The home directory exists at handoff | The umask is set first so the home directory is created under it | On a node that meets the contract the home directory already exists, so the umask does not shape it |
-| sudo | With a password (RN-ACC-04) | Without a password, and tested that way | Onboarding changes it |
+| sudo | With a password, and no `NOPASSWD` rule (RN-ACC-04, RN-ACC-07) | Without a password, and tested that way | Onboarding changes it, contrary to OE-CON-05 and OE-ACC-04. Consistent once the playbook delivers them. |
 | Python | Reported, not promised | Installed by bootstrap | Consistent. Onboarding supplies what the contract leaves out. |
-| SSH server | Listening, with key login and password login as a recovery path (RN-SSH-01, RN-ACC-02, RN-ACC-03) | Installed and hardened | Repeated. Whether password login survives depends on the role's settings, which were not read. |
+| SSH server | Listening, key login only (RN-SSH-01, RN-ACC-02, RN-SSH-03) | Installed and hardened | Repeated. Whether the role keeps key-only login is to be tested by OE-SSH-03. |
+| Host keys | Reported in the confirmation (`ssh_host_keys`) | Not checked | Ingress should verify them before trusting the node |
 | Firewall | A firewall that meets RN-FW-01 to RN-FW-04. No manager is named, since RN-FWM-01 was retired in raw node contract 0.2.0. | `uc_firewall`, from `firewall_rules_onboard` | Reconciled once `ansible-role-foomuuri` replaces `uc_firewall`. The role assumes that a Foomuuri-managed firewall is wanted, and nothing about the firewall the node arrives with. It installs Foomuuri over whatever is there. |
 | Checking the node | Ingress checks the node against the contract, reading its confirmation file | Discovery scans a subnet for hosts. Nothing reads the confirmation file. | The contract check is not in the playbooks supplied |
 | Name | A hostname that is set (RN-NET-01) | A provisional inventory name, `disc-<ip>`. Renaming is not done here. | Not reconciled |
@@ -160,6 +168,7 @@ Normalization must not rely on these:
 
 ## Open points
 
+- When onboarding deletes `initial`, or whether normalization does, and so which contract states that it is gone.
 - When `10_onboard.yml` is brought in line with the raw node contract, which clauses change? Connection, Accounts and Order of proof all describe a node that is first reached as root and has no `initial` account yet.
 - Should the Converged clauses gain a test at the end of the playbook, so that normalization relies on proof and not on a role having run?
 - Should onboarding write a report of its own, as the raw node writes its confirmation file?
@@ -180,6 +189,7 @@ While the major version is 0, a minor version may also be incompatible, and the 
 
 | Version | Status | Notes |
 | --- | --- | --- |
+| 0.3.0 | Draft | Incompatible with 0.2.1. Applies the privileged access policy where an onboarded node can meet it: OE-CON-02 (passwordless sudo) retired; OE-CON-05 (sudo with a password), OE-ACC-03 (unique password), OE-ACC-04 (no `NOPASSWD`) and OE-SSH-03 (key-only SSH) added, all not yet delivered; become password added to what normalization receives; overlap table updated for raw node contract 0.3.0 |
 | 0.2.1 | Draft | Two decisions by the owner recorded, with no clause changed: `ansible-role-foomuuri` will replace `uc_firewall`, and the raw node contract is the current description of a raw node. Two open points removed and one added. |
 | 0.2.0 | Draft | Rewritten from the ingress playbooks: clauses for connection, accounts, baseline, SSH, firewall and inventory, each with how it is proved. Order of proof and overlap with the raw node contract added. The version 0.1.0 firewall clauses are kept and marked not yet delivered. Incompatible with 0.1.0. |
 | 0.1.0 | Draft | First draft: firewall and firewall manager clauses. SSH, normalization prerequisites and the report left open, with candidates. |

@@ -15,7 +15,7 @@ Status: Draft
 
 Author: Christopher Steel
 
-This policy states what must always be true of privileged access on a normalized node: who may obtain root, how they authenticate, and how the credentials involved are kept. Every clause names the authorities it satisfies and how it is checked on a node. The reasons behind it are recorded in [uc-privileged-access-decision](../../decisions/uc-privileged-access-decision.md).
+This policy states what must always be true of privileged access on a normalized node: who may obtain root, how they authenticate, and how the credentials involved are kept. Every clause names the authorities it satisfies and how it is checked on a node. The reasons behind it are recorded in [uc-privileged-access-decision](../../decisions/uc-privileged-access-decision-v0.3.0.md).
 
 ## Overview
 
