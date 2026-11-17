@@ -3,13 +3,13 @@ name: uc-onboarding-egress-contract
 org: universal-cake
 lang: en
 type: contract
-version: 0.2.0
+version: 0.2.1
 date: 2026-11-16
 ---
 
 # Onboarding egress contract
 
-Version: 0.2.0
+Version: 0.2.1
 
 Status: Draft
 
@@ -98,7 +98,7 @@ In the order the playbook applies them.
 | --- | --- | --- |
 | OE-FW-06 | A firewall is applied from `firewall_rules_onboard`, and those rules include SSH | Converged, by `uc_firewall`, which refuses to run without the SSH rule |
 
-The clauses below were drafted in version 0.1.0 from `ansible-role-foomuuri`. The playbook runs `uc_firewall`, so none of them is delivered by the playbook as supplied.
+The clauses below were drafted in version 0.1.0 from `ansible-role-foomuuri`. The owner has decided that `ansible-role-foomuuri` will replace `uc_firewall` in `10_onboard.yml`. The playbook as supplied still runs `uc_firewall`, so none of these clauses is delivered yet. When the replacement is made they take over from OE-FW-06, which is then retired.
 
 | ID | The onboarded node provides | Proof |
 | --- | --- | --- |
@@ -134,6 +134,8 @@ The playbook's order carries meaning, and its comments say why:
 
 The playbook and the raw node contract describe a raw node differently. Each row is a point where onboarding repeats, changes or contradicts what the contract says the node already has.
 
+The owner has decided that the raw node contract is the current description: a raw node is reached as the initial user with sudo, and has a firewall that allows SSH. The playbook as supplied predates that and is to be brought in line. Until it is, the rows below stand.
+
 | Subject | Raw node contract | `10_onboard.yml` | Effect |
 | --- | --- | --- | --- |
 | How the node is reached | SSH as `initial_username` with a key. `root` cannot log in over SSH (RN-ACC-02, RN-ACC-05). | As root, over the Incus connection or over SSH | A node that meets the contract cannot be reached as root over SSH |
@@ -142,7 +144,7 @@ The playbook and the raw node contract describe a raw node differently. Each row
 | sudo | With a password (RN-ACC-04) | Without a password, and tested that way | Onboarding changes it |
 | Python | Reported, not promised | Installed by bootstrap | Consistent. Onboarding supplies what the contract leaves out. |
 | SSH server | Listening, with key login and password login as a recovery path (RN-SSH-01, RN-ACC-02, RN-ACC-03) | Installed and hardened | Repeated. Whether password login survives depends on the role's settings, which were not read. |
-| Firewall | Foomuuri, with `00-raw-node.conf` (RN-FWM-01) | `uc_firewall`, from `firewall_rules_onboard` | Two definitions of the firewall, to reconcile |
+| Firewall | A firewall that meets RN-FW-01 to RN-FW-04. No manager is named, since RN-FWM-01 was retired in raw node contract 0.2.0. | `uc_firewall`, from `firewall_rules_onboard` | Reconciled once `ansible-role-foomuuri` replaces `uc_firewall`. The role assumes that a Foomuuri-managed firewall is wanted, and nothing about the firewall the node arrives with. It installs Foomuuri over whatever is there. |
 | Checking the node | Ingress checks the node against the contract, reading its confirmation file | Discovery scans a subnet for hosts. Nothing reads the confirmation file. | The contract check is not in the playbooks supplied |
 | Name | A hostname that is set (RN-NET-01) | A provisional inventory name, `disc-<ip>`. Renaming is not done here. | Not reconciled |
 
@@ -158,8 +160,7 @@ Normalization must not rely on these:
 
 ## Open points
 
-- Which description of a raw node is current: the raw node contract, or the playbook's? The second row of the overlap table decides whether contract nodes are onboarded at all.
-- Does `ansible-role-foomuuri` replace `uc_firewall` in `10_onboard.yml`, or does `uc_firewall` call it?
+- When `10_onboard.yml` is brought in line with the raw node contract, which clauses change? Connection, Accounts and Order of proof all describe a node that is first reached as root and has no `initial` account yet.
 - Should the Converged clauses gain a test at the end of the playbook, so that normalization relies on proof and not on a role having run?
 - Should onboarding write a report of its own, as the raw node writes its confirmation file?
 
@@ -179,5 +180,6 @@ While the major version is 0, a minor version may also be incompatible, and the 
 
 | Version | Status | Notes |
 | --- | --- | --- |
+| 0.2.1 | Draft | Two decisions by the owner recorded, with no clause changed: `ansible-role-foomuuri` will replace `uc_firewall`, and the raw node contract is the current description of a raw node. Two open points removed and one added. |
 | 0.2.0 | Draft | Rewritten from the ingress playbooks: clauses for connection, accounts, baseline, SSH, firewall and inventory, each with how it is proved. Order of proof and overlap with the raw node contract added. The version 0.1.0 firewall clauses are kept and marked not yet delivered. Incompatible with 0.1.0. |
 | 0.1.0 | Draft | First draft: firewall and firewall manager clauses. SSH, normalization prerequisites and the report left open, with candidates. |

@@ -3,13 +3,13 @@ name: uc-raw-node-contract
 org: universal-cake
 lang: en
 type: contract
-version: 0.1.0
-date: 2026-11-15
+version: 0.2.0
+date: 2026-11-16
 ---
 
 # Raw node contract
 
-Version: 0.1.0
+Version: 0.2.0
 
 Status: Draft
 
@@ -72,7 +72,9 @@ Password hashes and other secrets used to build the node belong to the producer.
 
 ### Firewall
 
-These clauses are stated in nftables terms and are meant to outlast any one firewall manager.
+The raw node has a firewall that allows incoming communications to take place over port 22
+
+Below needs to be rewritten to reflect that: 
 
 | ID | The raw node provides |
 | --- | --- |
@@ -83,11 +85,11 @@ These clauses are stated in nftables terms and are meant to outlast any one fire
 
 ### Firewall manager
 
-This clause names the current manager. Replacing it is a major change to the contract, while the firewall clauses above stay.
+No clauses. The contract does not name a firewall manager: the firewall clauses above are all a raw node promises about its firewall. Foomuuri is installed during onboarding, which comes after this contract.
 
-| ID | The raw node provides |
+| ID | Status |
 | --- | --- |
-| RN-FWM-01 | The firewall manager is Foomuuri, and its configuration is only the file `/etc/foomuuri/00-raw-node.conf` |
+| RN-FWM-01 | Retired in version 0.2.0. It said that the firewall manager is Foomuuri, with its configuration only in the file `/etc/foomuuri/00-raw-node.conf`. |
 
 ### Report
 
@@ -193,7 +195,7 @@ The contract has its own version, independent of any producer's baseline. Every 
 
 | Change | Version part |
 | --- | --- |
-| A clause is removed, weakened or changed in meaning, a confirmation field is removed, renamed or changes meaning, or the firewall manager in RN-FWM-01 changes | Major |
+| A clause is removed, weakened or changed in meaning, or a confirmation field is removed, renamed or changes meaning | Major |
 | A clause or a confirmation field is added | Minor |
 | Wording is clarified without changing what either side may rely on | Patch |
 
@@ -203,4 +205,5 @@ While the major version is 0, a minor version may also be incompatible, and the 
 
 | Version | Status | Notes |
 | --- | --- | --- |
+| 0.2.0 | Draft | RN-FWM-01 retired: the contract no longer names a firewall manager, because Foomuuri is installed during onboarding, after this contract. Incompatible with 0.1.0 for anything that relied on a raw node running Foomuuri. |
 | 0.1.0 | Draft | First version, agreed in discussion: clauses for hostname, accounts, SSH, the nftables firewall and its manager, and the confirmation report with interfaces and identity |
