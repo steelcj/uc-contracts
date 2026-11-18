@@ -13,7 +13,7 @@ Contracts, policies and decisions shared by independently developed Universal Ca
 
 | Contract | Version | Status | Egress (producers) | Ingress (consumers) | Document |
 | --- | --- | --- | --- | --- | --- |
-| `raw-node` | 0.3.0 | Draft | uc-ventoy | uc-controller | [uc-raw-node-contract.md](en/docs/node-onboarding-pipeline/1-raw-node-egress/uc-raw-node-contract.md) |
+| `raw-node` | 0.3.1 | Draft | uc-ventoy | uc-controller | [uc-raw-node-contract.md](en/docs/node-onboarding-pipeline/1-raw-node-egress/uc-raw-node-contract.md) |
 | `onboarding-egress` | 0.3.0 | Draft | uc-controller (onboarding) | uc-controller (normalization) | [uc-onboarding-egress-contract.md](en/docs/node-onboarding-pipeline/2-ansible-ingress-egress-contract/uc-onboarding-egress-contract.md) |
 
 ### Policies

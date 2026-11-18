@@ -3,13 +3,13 @@ name: uc-raw-node-contract
 org: universal-cake
 lang: en
 type: contract
-version: 0.3.0
-date: 2026-11-16
+version: 0.3.1
+date: 2026-11-17
 ---
 
 # Raw node contract
 
-Version: 0.3.0
+Version: 0.3.1
 
 Status: Draft
 
@@ -18,8 +18,6 @@ Author: Christopher Steel
 This contract defines the state of a raw node at the moment a producer hands it over, and what Ansible ingress may rely on when it receives the node. It is the agreement between raw node producers (egress) and the Ansible controller (ingress). It does not describe how a producer fulfils it, or what happens after ingress.
 
 The [privileged access policy](../../node-policies/privileged-access/uc-privileged-access-policy.md) governs normalized nodes. This contract applies the parts of it that a raw node can already meet, for the reasons recorded in [uc-privileged-access-decision](../../decisions/uc-privileged-access-decision-v0.3.0.md).
-
-* adding a line to the raw node contract that `mac` and `machine_id` are quoted strings, so every future producer does the same.
 
 ## Stages
 
@@ -70,7 +68,7 @@ Ingress holds `initial_password`. Every other secret used to build the node, suc
 | RN-ACC-04 | `initial_username` can obtain root privileges through sudo, with its password |
 | RN-ACC-05 | The `root` account has a password and cannot log in over SSH |
 | RN-ACC-06 | `initial_username` can log in at the console with its password, as the recovery path during the raw window |
-| RN-ACC-07 | No sudoers rule contains `NOPASSWD` or `!authenticate` |
+| RN-ACC-07 | No sudoers rule contains `NOPASSWD` or `!authenticate`. A comment line is not a rule. |
 | RN-ACC-08 | `initial_password` is at least 15 characters |
 
 ### SSH
@@ -83,9 +81,7 @@ Ingress holds `initial_password`. Every other secret used to build the node, suc
 
 ### Firewall
 
-The raw node has a firewall that allows incoming communications to take place over port 22
-
-Below needs to be rewritten to reflect that: 
+The raw node has a firewall that accepts SSH on `ssh_port` from `ssh_sources`, and little else. The clauses are stated in nftables terms, so that they hold whichever firewall manager the producer uses.
 
 | ID | The raw node provides |
 | --- | --- |
@@ -96,7 +92,7 @@ Below needs to be rewritten to reflect that:
 
 ### Firewall manager
 
-No clauses. The contract does not name a firewall manager: the firewall clauses above are all a raw node promises about its firewall. Foomuuri is installed during onboarding, which comes after this contract.
+No clauses. The firewall manager is the producer's choice, and the confirmation reports which one is active in `firewall`. The firewall clauses above are all a raw node promises about its firewall. Onboarding may keep the manager it finds or replace it with its own, and ingress must not rely on any particular one.
 
 | ID | Status |
 | --- | --- |
@@ -118,41 +114,60 @@ The confirmation is YAML, keyed by the node's hostname:
 
 ```yaml
 deb13-vt-a1b2:
-  contract: 0.3.0
-  baseline: 0.4.0
-  timestamp: 2026-11-15T19:35:00-05:00
-  machine_id: 4c1f0a9e2b7d4e8f9a0b1c2d3e4f5a6b
-  user: initial
+  contract: "0.3.1"
+  baseline: "0.4.0"
+  timestamp: "2026-11-15T19:35:00-05:00"
+  machine_id: "4c1f0a9e2b7d4e8f9a0b1c2d3e4f5a6b"
+  user: "initial"
   sudo: true
   sudo_nopasswd: false
   ssh_port: 22
   ssh_password_auth: false
   ssh_host_keys:
-    - type: ssh-ed25519
+    - type: "ssh-ed25519"
       fingerprint: "SHA256:k3J8m0yQvXb2..."
-    - type: ecdsa-sha2-nistp256
+    - type: "ecdsa-sha2-nistp256"
       fingerprint: "SHA256:Qe1pT9wZr4Lc..."
-  firewall: foomuuri
+  firewall: "foomuuri"
   firewall_active: true
-  python: /usr/bin/python3
+  python: "/usr/bin/python3"
   interfaces:
-    - name: enp0s31f6
-      type: ethernet
-      mac: 8c:8c:aa:11:22:33
-      state: up
+    - name: "enp0s31f6"
+      type: "ethernet"
+      mac: "8c:8c:aa:11:22:33"
+      state: "up"
       default_route4: true
       default_route6: true
-      ip: [192.0.2.10]
-      ip6: [2001:db8::10]
-    - name: wlp0s20f3
-      type: wireless
-      mac: 70:cf:49:44:55:66
-      state: down
+      ip: ["192.0.2.10"]
+      ip6: ["2001:db8::10"]
+    - name: "wlp0s20f3"
+      type: "wireless"
+      mac: "70:cf:49:44:55:66"
+      state: "down"
       default_route4: false
       default_route6: false
       ip: []
       ip6: []
 ```
+
+### Value types
+
+Only the booleans (`sudo`, `sudo_nopasswd`, `ssh_password_auth`, `firewall_active`, `default_route4`, `default_route6`) and `ssh_port` are anything other than strings. Every other value is a string, including empty values, which are written `""`, and every item in the `ip` and `ip6` lists.
+
+YAML 1.1 parsers, which include PyYAML and therefore Ansible, otherwise change some values silently:
+
+| Value | Unquoted, read as |
+| --- | --- |
+| `machine_id` made only of decimal digits | An integer, losing any leading zeros |
+| `mac` made only of decimal digits and colons, such as `52:54:00:12:34:56` | A base 60 integer |
+| `timestamp` | A datetime, not the text that was measured |
+| An IPv6 address made only of decimal digits and colons | A base 60 integer |
+| `contract` or `baseline`, such as `1.0` | A number |
+
+So:
+
+- A producer should write every string value in double quotes, as in the example above. From the next minor version this is required.
+- A consumer must read every value as a string, for example with PyYAML's `BaseLoader`, and convert the booleans and `ssh_port` itself. It must not rely on a producer quoting.
 
 ### Fields
 
@@ -232,6 +247,7 @@ While the major version is 0, a minor version may also be incompatible, and the 
 
 | Version | Status | Notes |
 | --- | --- | --- |
+| 0.3.1 | Draft | Wording only, no clause or field changed: the unfinished firewall text replaced by a sentence in terms of `ssh_port` and `ssh_sources`; the firewall manager stated to be the producer's choice, which onboarding may keep or replace, correcting the statement that Foomuuri is installed during onboarding; RN-ACC-07 clarified, a comment line is not a rule; a section on value types added, with producers advised to quote every string value and consumers required to read every value as a string; the example quoted accordingly; a stray draft note removed |
 | 0.3.0 | Draft | Incompatible with 0.2.0. Applies the privileged access policy where a raw node can meet it: shared parameter `initial_password` added; RN-ACC-03 (password login over SSH) retired; RN-ACC-06 (console login with the password), RN-ACC-07 (no `NOPASSWD`), RN-ACC-08 (password length) and RN-SSH-03 (key-only SSH) added; confirmation fields `sudo_nopasswd`, `ssh_password_auth` and `ssh_host_keys` added, with how ingress uses host keys |
 | 0.2.0 | Draft | RN-FWM-01 retired: the contract no longer names a firewall manager, because Foomuuri is installed during onboarding, after this contract. Incompatible with 0.1.0 for anything that relied on a raw node running Foomuuri. |
 | 0.1.0 | Draft | First version, agreed in discussion: clauses for hostname, accounts, SSH, the nftables firewall and its manager, and the confirmation report with interfaces and identity |
