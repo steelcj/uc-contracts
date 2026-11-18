@@ -19,6 +19,8 @@ This contract defines the state of a raw node at the moment a producer hands it 
 
 The [privileged access policy](../../node-policies/privileged-access/uc-privileged-access-policy.md) governs normalized nodes. This contract applies the parts of it that a raw node can already meet, for the reasons recorded in [uc-privileged-access-decision](../../decisions/uc-privileged-access-decision-v0.3.0.md).
 
+* adding a line to the raw node contract that `mac` and `machine_id` are quoted strings, so every future producer does the same.
+
 ## Stages
 
 | Stage | What it does | Changes the node | Covered here |

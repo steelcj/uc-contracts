@@ -5,6 +5,7 @@ Contracts, policies and decisions shared by independently developed Universal Ca
 - A contract describes one boundary: what one side hands over, and what the other side may rely on when it receives it.
 - A policy describes what must always be true of something, such as a normalized node, whichever project produced or manages it.
 - A decision records why a contract or policy says what it does, and which options were rejected.
+- adding a line to the raw node contract that `mac` and `machine_id` are quoted strings, so every future producer does the same.
 
 ## Index
 

@@ -21,6 +21,10 @@ It is written from the two ingress playbooks, `00_discover.yml` and `10_onboard.
 
 Version 0.3.0 applies the [privileged access policy](../../node-policies/privileged-access/uc-privileged-access-policy.md) where an onboarded node can meet it, for the reasons recorded in [uc-privileged-access-decision](../../decisions/uc-privileged-access-decision-v0.3.0.md). The clauses it adds are marked "Not yet" until the playbook delivers them.
 
+## mac and machine_id are represented as strings
+
+ `mac` and `machine_id` are represented as quoted strings in yaml files, so every future producer should do the same.
+
 ## Stages
 
 | Stage | Playbook | What it does | Changes the node | Covered here |
